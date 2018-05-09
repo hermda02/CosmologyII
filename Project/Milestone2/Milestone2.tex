@@ -3,6 +3,7 @@
 % Language and font encodings
 \usepackage[english]{babel}
 \usepackage{amsmath}
+\usepackage[a4paper,top=3cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
 \usepackage{graphicx}
 \usepackage{tabularx}
 \usepackage{natbib}
@@ -141,7 +142,6 @@ To verify that the electron density evolution is smooth for all arbitrary values
 
 Next we calculate the optical depth of the universe using equation \ref{eq:depth}. The ODE solver is used again to aid in solving for the optical depth. Again, a subroutine is used to solve for the differentials. The first and second derivatives of the optical depth are also solved for to allow us to visualize how the optical depth changes over time. The first derivative, $\tau'$ is solved for directly using equation \ref{eq:depthderiv}, and the second derivative is solved using the spline function. The optical depth (and its derivatives) are splined in the same way as the electron density as mentioned in section \ref{sec:fraccalc}.
 
-\clearpage
 
 \subsection{Visbility Function}\label{sec:viscalc}
 
@@ -174,7 +174,6 @@ The visibility function helps to visualize the probability of when a photon scat
 \includegraphics[scale=0.45]{visibilityfunctions}
 \end{figure}
 
-\clearpage
 
 \section{Conclusion}\label{sec:conc}
 

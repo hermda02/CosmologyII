@@ -3,6 +3,7 @@
 % Language and font encodings
 \usepackage[english]{babel}
 \usepackage{amsmath}
+\usepackage[a4paper,top=3cm,bottom=2cm,left=3cm,right=3cm,marginparwidth=1.75cm]{geometry}
 \usepackage{graphicx}
 \usepackage{tabularx}
 \usepackage{natbib}
@@ -137,15 +138,15 @@ These values are plugged into the ODE solver to return $\eta(x)$. An included sp
 
 \section{Results}\label{Results}
 
-We see in figure \ref{fig:dens} that in the early universe, the radiation density dominates in comparison to the other contributions ot the overall density. As we approach lower redshift, we see the dark matter and baryon densities begin to increase.
-\begin{wrapfigure}{i}{0.65\textwidth}\label{fig:dens}
-  \begin{center}
-    \includegraphics[width=0.65\textwidth]{densities2}
-  \end{center}
-  \caption{The evolution of $\Omega$s as a function of $x$.}
-\end{wrapfigure} 
+We see in figure \ref{fig:dens} that in the early universe, the radiation density dominates in comparison to the other contributions ot the overall density. As we approach lower redshift, we see the dark matter and baryon densities begin to increase.\\ 
+
 As expected, the dark matter and baryonic matter contributions behave in the same fashion. For very low redshift, the matter densities taper off quickly and the vacuum energy $\Omega_{\Lambda}$ quickly becomes the most dominant factor contributing to the Hubble parameter.
 
+\begin{figure}[h!]\label{fig:dens}
+\centering
+\includegraphics[scale=0.25]{densities2}
+\caption{The evolution of $\Omega$s as a function of $x$.}
+\end{figure} 
 In figure \ref{fig:etax} we use $\log(\eta)$ to better observe the evolution of the conformal time $\eta(x)$. The conformal time measures the size of the particle horizon, which quickly expands and approaches $10^4$ Mpc.\\
 
 The current measured particle horizon (size of the observable universe) is roughly 14Gpc, so our simulation appears to be working properly. We see 
@@ -153,6 +154,7 @@ The current measured particle horizon (size of the observable universe) is rough
 
 
 \begin{figure}[hb!]\label{fig:etax}
+\centering
 \includegraphics[scale=0.25]{eta_x2}
 \caption{The evolution of $\eta$ as a function of $x = \ln(a)$.}
 \end{figure}
@@ -161,7 +163,9 @@ The current measured particle horizon (size of the observable universe) is rough
 
 The Hubble parameter $H$ is plotted in figures \ref{fig:hx} and \ref{fig:hz} as functions of $x$ and $z$ respectively. I cannot speak to the validity of the evolution of $H$, however we do see that $H \rightarrow H_0$ as $z \rightarrow 0$. 
 \begin{center}
+\centering
 \begin{figure}[ht!]\label{fig:hx}
+\centering
 \includegraphics[scale=0.35]{hx}
 \caption{The evolution of the Hubble parameter as a function of $x$. $\ln(H)$ is used on the y-axis for clarity.}
 \end{figure}

@@ -5,6 +5,10 @@ module time_mod
   use ode_solver
   implicit none
 
+
+  real(dp)     :: z_start_rec, z_end_rec, z_0, x_start_rec, x_end_rec, x_0
+
+
   integer(i4b)                           :: n_t                ! Number of x-values
   real(dp),    allocatable, dimension(:) :: x_t                ! Grid of relevant x-values
   real(dp),    allocatable, dimension(:) :: a_t                ! Grid of relevant a-values
@@ -15,7 +19,6 @@ module time_mod
   real(dp),    allocatable, dimension(:) :: z_eta              ! Grid points for z_eta
   real(dp),    allocatable, dimension(:) :: a_eta              ! Grid points for a_eta
   real(dp),    allocatable, dimension(:) :: eta, eta2          ! Eta and eta'' at each grid point
-  real(dp),    allocatable, dimension(:) :: dydx
 
   real(dp)                               :: rho_crit0          ! critical density today
   real(dp)                               :: rho_m0             ! matter density today
@@ -23,19 +26,24 @@ module time_mod
   real(dp)                               :: rho_r0             ! radiation density today
   real(dp)                               :: rho_nu0            ! neutrino density today
   real(dp)                               :: rho_lambda0        ! vacuum energy density today
+
   real(dp),    allocatable, dimension(:) :: rho_m              ! matter density grid
   real(dp),    allocatable, dimension(:) :: rho_b              ! baryon density grid
   real(dp),    allocatable, dimension(:) :: rho_r              ! radiation density grid
   real(dp),    allocatable, dimension(:) :: rho_nu             ! neutrino density grid
   real(dp),    allocatable, dimension(:) :: rho_lambda         ! vacuum energy density grid
+
   real(dp),    allocatable, dimension(:) :: Omega_mx           ! Relative densities
   real(dp),    allocatable, dimension(:) :: Omega_bx           ! ''
   real(dp),    allocatable, dimension(:) :: Omega_rx           ! ''
   real(dp),    allocatable, dimension(:) :: Omega_nux          ! ''
   real(dp),    allocatable, dimension(:) :: Omega_lambdax      ! ''
+
   real(dp),    allocatable, dimension(:) :: Hx                 ! Hubble constant as a func of x
+
   real(dp)                               :: m2mpc              ! Value for changing m to Mpc
   real(dp)                               :: kmmpc
+
 
 contains
 
@@ -43,13 +51,13 @@ contains
     implicit none
 
     integer(i4b) :: i, n, n1, n2
-    real(dp)     :: z_start_rec, z_end_rec, z_0, x_start_rec, x_end_rec, x_0
     real(dp)     :: dx,x_eta1, x_eta2, a_init,a_end,eta_init
     real(dp)     :: eps,hmin,yp1,ypn,h1
+    real(dp),    allocatable, dimension(:) :: dydx
 
     ! Define two epochs, 1) during and 2) after recombination.
 
-    !------------------------------------
+    !-----------------------------------------------------------------------------------
     ! Initialize the values for variables that are used during the calculations
 
     n1          = 200                       ! Number of grid points during recombination
@@ -70,33 +78,53 @@ contains
     x_eta1      = log(a_init)               ! Start value of x for eta evaluation
     x_eta2      = 0.d0                      ! End value of x for eta evaluation
 
-    eps = 1.d-10
+    eps  = 1.d-10
     hmin = 0.d0
 
     m2mpc = 3.2408d-23                      ! 3.086*10^22m = 1Mpc
     kmmpc = 3.086d19                        ! ''
 
-    !------------------------------------
+    yp1   = 1.d30
+    ypn   = 1.d30
+
+
+    !-----------------------------------------------------------------------------------
     ! Task: Fill in x and a grids
-
     allocate(x_t(n_t))
-    do i = 0,n1-1                      ! Fill recombination interval
-       x_t(i+1) = x_start_rec + i*(x_end_rec-x_start_rec)/(n1-1)
-    end do
-
-    do i = 1,n2                        ! Fill post recombination interval
-       x_t(n1+i) = x_end_rec + i*(x_0-x_end_rec)/(n2)
-    end do
-
     allocate(a_t(n_t))
-    a_t = exp(x_t)                     ! Fill the a_t-grid using the x_t values
-
-    ! Task: 1) Compute the conformal time at each eta time step
-    !       2) Spline the resulting function, using the provided "spline" routine in spline_1D_mod.f90
+    allocate(eta(n_eta))
     allocate(x_eta(n_eta))
     allocate(a_eta(n_eta))
     allocate(z_eta(n_eta))
     allocate(eta2(n_eta))
+
+    allocate(rho_m(n_eta))
+    allocate(rho_b(n_eta))
+    allocate(rho_r(n_eta))
+    allocate(rho_nu(n_eta))
+    allocate(rho_lambda(n_eta))
+
+    allocate(Omega_mx(n_eta))
+    allocate(Omega_bx(n_eta))
+    allocate(Omega_rx(n_eta))
+    allocate(Omega_nux(n_eta))
+    allocate(Omega_lambdax(n_eta))
+    allocate(Hx(n_eta))
+
+
+    do i = 0,n1-1                           ! Fill recombination interval
+       x_t(i+1) = x_start_rec + i*(x_end_rec-x_start_rec)/(n1-1)
+    end do
+
+    do i = 1,n2                             ! Fill post recombination interval
+       x_t(n1+i) = x_end_rec + i*(x_0-x_end_rec)/(n2)
+    end do
+
+    a_t = exp(x_t)                          ! Fill the a_t-grid using the x_t values
+
+
+    ! Task: 1) Compute the conformal time at each eta time step
+    !       2) Spline the resulting function, using the provided "spline" routine in spline_1D_mod.f90
     
     ! Compute the x_eta values
     x_eta(1) = x_eta1
@@ -104,11 +132,36 @@ contains
        x_eta(i+1) = x_eta1 + i*(x_eta2-x_eta1)/(n_eta-1)
     end do
 
+    eta(1) = c*1.d-10/(H_0*sqrt(Omega_r+Omega_nu)) ! early universe is rad/neutrino dominated
+
+    h1 = abs(1.d-2*(x_eta(1)-x_eta(2)))
+
+    allocate(dydx(1))
+
+    do i =2,n_eta
+       eta(i) = eta(i-1)
+       call odeint(eta(i:i),x_eta(i-1),x_eta(i),eps,h1,hmin,eta_derivs,bsstep,output)
+    end do
+    
+    call spline(x_eta,eta,yp1,ypn,eta2)
+
+
     ! Compute the a_eta and z_eta values
     a_eta = exp(x_eta)
     z_eta = 1.d0/a_eta - 1.d0
 
-    !-----------------------------------
+    ! print *, "z"
+    ! write(*,*) size(z_eta)
+
+    ! print *, "x"
+    ! write(*,*) size(x_eta)
+
+    ! print *, "a"
+    ! write(*,*) size(a_eta)
+
+
+
+    !--------------------------------------------------------------------------------------
     ! Density calculations 
     
     rho_crit0  = 3.d0*H_0**2.d0/(8.d0*pi*G_grav)
@@ -118,17 +171,7 @@ contains
     rho_nu0    = Omega_nu     * rho_crit0
     rho_lambda0= Omega_lambda * rho_crit0
 
-    allocate(rho_m(n_eta))
-    allocate(rho_b(n_eta))
-    allocate(rho_r(n_eta))
-    allocate(rho_nu(n_eta))
-    allocate(rho_lambda(n_eta))
-    allocate(Omega_mx(n_eta))
-    allocate(Omega_bx(n_eta))
-    allocate(Omega_rx(n_eta))
-    allocate(Omega_nux(n_eta))
-    allocate(Omega_lambdax(n_eta))
-    allocate(Hx(n_eta))
+    
 
     do i=1,n_eta
        Hx(i) = get_H(x_eta(i))*kmmpc
@@ -147,22 +190,14 @@ contains
       end do
     close(50)
 
-    !-----------------------------------
+
+
+    !-------------------------------------------------------------------------------------
     ! Calculate the eta values, initializing eta(1) using the assumption that the universe
-    ! is radiation dominated before recomination
+    ! is radiation dominated before recomination (rad/matter equality).
 
-    allocate(eta(n_eta))
-    eta(1) = 1.d-10/(H_0*sqrt(Omega_r+Omega_nu)) ! early universe is rad/neutrino dominated
-    h1 = abs(1.d-2*(a_eta(1)-a_eta(2)))
-    allocate(dydx(1))
 
-    do i =2,n_eta
-       eta(i) = eta(i-1)
-       call odeint(eta(i:i),a_eta(i-1),a_eta(i),eps,h1,hmin,eta_derivs,bsstep,output)
-    end do
-    
-    eta = c*eta                   ! eta is defined by c/a 
-    eta = m2mpc*eta               ! Put eta in units of cMpc
+    ! write(*,*) eta ! eta check
 
     ! Print x,a, and eta values to file for plotting
     open(54, file='data.dat')
@@ -171,26 +206,27 @@ contains
        end do
     close(54)
 
+
+
   end subroutine initialize_time_mod
 
-  !-----------------------------------
+  !-----------------------------------------------------------------------------------
 
-  subroutine eta_derivs(a,eta,dydx) ! Defining the eta deriv
+  subroutine eta_derivs(x,eta,dydx) ! Defining the derivative d(eta)/da
 
   use healpix_types
      implicit none
 
-     real(dp),               intent(in)  :: a
+     real(dp),               intent(in)  :: x
      real(dp), dimension(:), intent(in)  :: eta
      real(dp), dimension(:), intent(out) :: dydx
      real(dp)                            :: H_p
-     real(dp)                            :: x
 
-     x = log(a)
      H_p = get_H_p(x)
-     dydx = c/(a*H_p)
+     dydx = c/(H_p)
 
   end subroutine eta_derivs
+
 
   subroutine output(x,y)
      use healpix_types
@@ -201,8 +237,10 @@ contains
 
   end subroutine output 
 
-!-------------------Done with subroutines--------
-!---------------------Define Functions-----------
+!-------------------------------Done with subroutines----------------------------------------------
+!--------------------------------------------------------------------------------------------------
+!--------------------------------------------------------------------------------------------------
+!---------------------------------Define Functions-------------------------------------------------
 
   ! Task: Write a function that computes H at given x
   function get_H(x)
@@ -217,6 +255,7 @@ contains
 
   end function get_H
 
+
   ! Task: Write a function that computes H' = a*H  at given x
   function get_H_p(x)
     implicit none
@@ -230,6 +269,7 @@ contains
 
   end function get_H_p
 
+
   ! Task: Write a function that computes dH'/dx at given x
   function get_dH_p(x)
     implicit none
@@ -242,16 +282,13 @@ contains
 
   end function get_dH_p
 
+
   ! Task: Write a function that computes eta(x), using the previously precomputed splined function
   function get_eta(x_in)
     implicit none
-
     real(dp), intent(in) :: x_in
     real(dp)             :: get_eta
-    real(dp)             :: a_in
-    a_in = exp(x_in)
-    get_eta = splint(a_eta,eta,eta2,a_in)
-
+    get_eta = splint(x_eta,eta,eta2,x_in)
   end function get_eta
 
 end module time_mod
