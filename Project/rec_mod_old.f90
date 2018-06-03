@@ -28,9 +28,8 @@ contains
     real(dp)     :: saha_limit, y, T_b, n_b, dydx, xmin, xmax, dx, f, n_e0, X_e0, xstart, xstop
     real(dp)     :: junk, const, phi2, alpha2, beta, beta2, lambda_alpha, lambda2s1s, n1s, C_r
     real(dp)     :: z_start_rec, z_end_rec, z_0
-    real(dp)     :: l,dl,ddl          ! dummy variables for printing
     logical(lgt) :: use_saha
-    
+
 
     saha_limit  = 0.99d0              ! Switch from Saha to Peebles when X_e < 0.99
     xstart      = log(1.d-10)         ! Start grids at a = 10^-10
@@ -79,6 +78,7 @@ contains
     z_rec       = 1.d0/a_rec - 1.d0
 
     h1          = abs(1.d-2*(x_rec(1) - x_rec(2)))   ! Define the step length for the odeint
+
     ! ---------------------------------------------------------------------------------------------------
 
     ! Task: Compute X_e and n_e at all grid times
@@ -92,7 +92,7 @@ contains
 
        if (use_saha) then
           ! Use the Saha equation
-          X_e(i) = 2.d0/(sqrt(1+4.d0/junk)+1.d0)!(-junk+sqrt(junk*junk+4.d0*junk))/2.d0
+          X_e(i) = (-junk+sqrt(junk*junk+4.d0*junk))/2.d0
           if (X_e(i) < saha_limit) use_saha = .false.
        else
           ! Use the Peebles equation
@@ -105,11 +105,11 @@ contains
        
     end do
 
-    open(26, file='X_e.dat')
-      do i=1,n
-         write(26,'(2(E17.8))') x_rec(i),X_e(i)
-      end do
-    close(26)
+    ! open(26, file='X_e.dat')
+    !   do i=1,n
+    !      write(26,'(2(E17.8))') x_rec(i),X_e(i)
+    !   end do
+    ! close(26)
     
     ! Task: Compute splined (log of) electron density function
     logn_e = log(n_e)
@@ -132,11 +132,11 @@ contains
     call spline(x_rec,tau,yp1,ypn,tau22)
     call spline(x_rec,tau22,yp1,ypn,tau4)
 
-    open(25, file='tau.dat')
-      do i=1,n
-         write(25,'(4(E17.8))') x_rec(i),get_tau(x_rec(i)),abs(get_dtau(x_rec(i))),get_ddtau(x_rec(i))
-      end do
-    close(25)
+    ! open(25, file='tau.dat')
+    !   do i=1,n
+    !      write(25,'(4(E17.8))') x_rec(i),tau(i),tau2(i),tau22(i)
+    !   end do
+    ! close(25)
 
     do i=1,n
        g(i) = -tau2(i)*exp(-tau(i))
@@ -153,19 +153,7 @@ contains
 
     open(20, file='vis2.dat')
       do i=1,n
-         l   = get_g(x_rec(i))
-         dl  = get_dg(x_rec(i))
-         ddl = get_ddg(x_rec(i))
-         if (abs(l) < 1.d-99) then
-            l = 0.d0
-         endif
-         if (abs(dl) < 1.d-99) then
-            dl = 0.d0
-         endif
-         if (abs(ddl) < 1.d-99) then
-            ddl = 0.d0
-         endif
-         write(20,'(4(E17.8))') x_rec(i),l,dl,ddl
+         write(20,'(4(E17.8))') x_rec(i),g(i),g2(i),g22(i)
       end do
     close(20)
 
@@ -240,6 +228,7 @@ contains
     real(dp), intent(in) :: x_in
     real(dp)             :: get_tau
     get_tau    = splint(x_rec, tau, tau22, x_in)
+    ! get_tau  = exp(get_tau)
   end function get_tau
 
 

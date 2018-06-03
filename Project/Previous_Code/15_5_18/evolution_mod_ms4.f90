@@ -32,16 +32,17 @@ module evolution_mod
   real(dp), allocatable, dimension(:)     :: ks
 
   ! Book-keeping variables
-  real(dp),                       private :: k_current
-  integer(i4b),                   private :: npar = 6+lmax_int
+  real(dp),     private :: k_current
+  integer(i4b), private :: npar = 6+lmax_int
   real(dp), allocatable, dimension(:)     :: prints
   real(dp), allocatable, dimension(:)     :: dydx
 
   ! Milestone 4 variables
   real(dp), allocatable, dimension(:,:,:,:) :: S_coeff
   real(dp), allocatable, dimension(:,:)     :: S_lores
-  integer(i4b), parameter                   :: n_k_hires = 5000
-  integer(i4b), parameter                   :: n_x_hires = 5000
+
+  integer(i4b), parameter                 :: n_k_hires = 5000
+  integer(i4b), parameter                 :: n_x_hires = 5000
 
 contains
 
@@ -51,30 +52,23 @@ contains
 
     real(dp), pointer, dimension(:),   intent(out) :: x_hires, k_hires
     real(dp), pointer, dimension(:,:), intent(out) :: S
-    real(dp), allocatable, dimension(:)            :: x_use
-    integer(i4b) :: i, k, i2
-    real(dp)     :: g, dg, ddg, tau, dt, ddt, H_p, dH_p, ddHH_p, Pi_c, dPi, ddPi
+
+    integer(i4b) :: i, k
+    real(dp)     :: g, dg, ddg, tau, dt, ddt, H_p, dH_p, ddHH_p, Pi, dPi, ddPi
     real(dp)     :: xi, kk, ck
 
     ! Task: Output a pre-computed 2D array (over k and x) for the 
-    !       source function, S(k,x). Remember to set up (and allocate) output k and x arrays too. 
-
-    write(*,*) 'Initializing the source function.'
+    !       source function, S(k,x). Remember to set up (and allocate) output 
+    !       k and x arrays too. 
 
     allocate(x_hires(n_x_hires),k_hires(n_k_hires))
-    allocate(S_lores(501,1:n_k))
-    allocate(S_coeff(4,4,501,n_k))
+    allocate(S_lores(1:n_t,1:n_k))
+    allocate(S_coeff(4,4,n_t,n_k))
     allocate(S(n_x_hires,n_k_hires))
-    allocate(x_use(501))
-
-    
-    do i=1,501
-       x_use(i) = x_t(i+999)
-    end do
 
     do i=1,n_x_hires
        do k=1,n_k_hires
-          x_hires(i) = x_use(1) + (0.d0-x_use(1))*(i-1.d0)/(n_x_hires-1.d0)
+          x_hires(i) = x_init + (x_0-x_init)*(i-1.d0)/(n_x_hires-1.d0)
           k_hires(k) = k_min  + (k_max - k_min)*((k-1.d0)/(n_k_hires -1.d0))
        end do
     end do
@@ -86,10 +80,9 @@ contains
        kk = ks(k)
        ck = c*kk
       
-       ! Only computing source function from the beginning of recombination
-       do i=1,501
-          i2    = i+999
-          xi    = x_use(i)          
+       do i=1,n_t
+          xi = x_t(i)
+          
           g     = get_g(xi)
           dg    = get_dg(xi)
           ddg   = get_ddg(xi)
@@ -98,33 +91,23 @@ contains
           ddt   = get_ddtau(xi)
           H_p   = get_H_p(xi)
           dH_p  = get_dH_p(xi)
-          Pi_c  = Theta(i2,2,k)
-          dPi   = dTheta(i2,2,k)
-          ddPi  = 2.d0*ck/(5.d0*H_p)*(-dH_p/H_p*Theta(i2,1,k) + dTheta(i2,1,k)) &
-                  + 0.3d0*(ddt*Pi_c+dt*dPi) &
-                  - 3.d0*ck/(5.d0*H_p)*(-dH_p/H_p*Theta(i2,3,k) + dTheta(i2,3,k))
+          Pi    = Theta(i,2,k)
+          dPi   = dTheta(i,2,k)
 
-          !if (i == 100 .and. k==10) then
-          !   write(*,*) 'need to compare!'
-          !   write(*,*) g*(Theta(i2,0,k)+Psi(i2,k)+0.25d0*Pi_c)
-          !endif
+          ddPi  = 2.d0*ck/(5.d0*H_p)*(-dH_p/H_p*Theta(i,1,k) + dTheta(i,1,k)) &
+                  + 0.3d0*(ddt*Pi+dt*dPi) &
+                  - 3.d0*ck/(5.d0*H_p)*(-dH_p/H_p*Theta(i,3,k) + dTheta(i,3,k))
 
-          S_lores(i,k) = g*(Theta(i2,0,k)+Psi(i2,k)+0.25d0*Pi_c)+exp(-tau)*(dPsi(i2,k)-dPhi(i2,k)) &
-                         - 1.d0/ck*(H_p*(g*dv_b(i2,k)+v_b(i2,k)*dg)+g*v_b(i2,k)*dH_p) &
+          S_lores(i,k) = g*(Theta(i,0,k)+Psi(i,k)+0.25d0*Pi)+exp(-tau)*(dPsi(i,k)-dPhi(i,k)) &
+                         - 1.d0/ck*(H_p*(g*dv_b(i,k)+v_b(i,k)*dg)+g*v_b(i,k)*dH_p) &
                          + 0.75d0/(ck**2)*((H_0**2/2.d0*((Omega_m+Omega_b)/exp(xi) & 
                          + 4.d0*Omega_r/exp(2.d0*xi)+4.d0*Omega_lambda*exp(2.d0*xi)))&
-                         * g*Pi_c+3.d0*H_p*dH_p*(dg*Pi_c+g*dPi) &
-                         + H_p**2*(ddg*Pi_c+2.d0*dg*dPi+g*ddPi))
+                         * g*Pi + 3.d0*H_p*dH_p*(dg*Pi+g*dPi)+H_p**2*(ddg*Pi + 2.d0*dg*dPi+g*ddPi))
         end do
     end do   
 
-    write(*,*) '---------------------------'   
-    !write(*,*) S_lores(100,1), S_lores(100,5), S_lores(100,10)
-    !write(*,*) get_g(x_use(100))*(Theta(1099,0,10)+Psi(1099,10)+0.25d0*Theta(1099,2,10))
-    !write(*,*) get_g(x_use(100)), x_use(100)
-
     !   2) Then spline this function with a 2D spline
-    call splie2_full_precomp(x_use, ks, S_lores,S_coeff)
+    call splie2_full_precomp(x_t, ks, S_lores,S_coeff)
  
     !   3) Finally, resample the source function on a high-resolution uniform
     !      5000 x 5000 grid and return this, together with corresponding
@@ -132,28 +115,27 @@ contains
     
     do k=1,n_k_hires
         do i=1,n_x_hires
-           S(i,k) = splin2_full_precomp(x_use,ks,S_coeff,x_hires(i), k_hires(k))
+           S(i,k) = splin2_full_precomp(x_t,ks,S_coeff,x_hires(i), k_hires(k))
         end do
     end do
-
-    write(*,*) 'Source funciton initialized.'
-    write(*,*) '-----------------------------------'
   end subroutine get_hires_source_function
+
 
   ! Routine for initializing and solving the Boltzmann and Einstein equations
   subroutine initialize_perturbation_eqns
     implicit none
 
     integer(i4b) :: l, i, k
-    x_init = log(a_init)
 
-    write(*,*) '-----------------------------------'
+    x_init = log(a_init)
 
     ! Task: Initialize k-grid, ks; quadratic between k_min and k_max
     allocate(ks(n_k))
     do k=1,n_k
        ks(k) = k_min + (k_max-k_min)*((k-1.d0)/(n_k-1.d0))**2
     end do
+
+    ! write(*,*) ks
 
     ! Allocate arrays for perturbation quantities
     allocate(Theta(1:n_t, 0:lmax_int, n_k))
@@ -189,8 +171,7 @@ contains
           Theta(1,l,i) = -l/(2.d0*l+1.d0)*c*ks(i)/(get_H_p(x_init)*get_dtau(x_init))*Theta(1,l-1,i)
        end do
     end do
-    write(*,*) 'Perturbation Equations Initialized.'
-    write(*,*) '-----------------------------------'
+
   end subroutine initialize_perturbation_eqns
 
   subroutine integrate_perturbation_eqns
@@ -199,7 +180,6 @@ contains
     integer(i4b) :: i, j, k, l,j_tc
     real(dp)     :: x1, x2,H,ck,ckH,a,dtau,x,bleta
     real(dp)     :: eps, hmin, h1, x_tc, H_p, dt, t1, t2
-    logical(lgt) :: exist
 
     real(dp), allocatable, dimension(:) :: y, y_tight_coupling
     real(dp), allocatable, dimension(:) :: x_temp,x_post,x_total
@@ -224,190 +204,179 @@ contains
     y                = 0.d0
     dydx             = 0.d0
 
-    ! Check to see if perturbation equation values are already stored
-    ! If not, compute
-    inquire(file='evo_dat.unf',exist=exist)
-    if (exist) then
+    open(26, file='derivs.dat')
+    open(27, file='vandb.dat')
+    open(28, file='phi_theta.dat')
 
-       write(*,*) 'Importing perturbation values...'
-       open(29,file='evo_dat.unf',form='unformatted')
-       read(29) Theta
-       read(29) delta
-       read(29) delta_b
-       read(29) Phi
-       read(29) Psi
-       read(29) v
-       read(29) v_b
-       read(29) dPhi
-       read(29) dPsi
-       read(29) dv_b
-       read(29) dTheta
-       close(29)
-       write(*,*) 'Successful import!'
-    else
+    ! Propagate each k-mode independently
+    do k = 1, n_k
+       write(*,*) k
+       k_current = ks(k)  ! Store k_current as a global module variable
+       ck = c*k_current
 
-       open(26, file='derivs.dat')
-       open(27, file='vandb.dat')
-       open(28, file='phi_theta.dat')
-       write(*,*) 'Computing perturbation values!'
-
-       ! Propagate each k-mode independently
-       do k = 1, n_k
-          write(*,*) 'k =', k
-          k_current = ks(k)  ! Store k_current as a global module variable
-          ck = c*k_current
-
-          ! Initialize equation set for tight coupling
-          y_tight_coupling(1) = delta(1,k)
-          y_tight_coupling(2) = delta_b(1,k)
-          y_tight_coupling(3) = v(1,k)
-          y_tight_coupling(4) = v_b(1,k)
-          y_tight_coupling(5) = Phi(1,k)
-          y_tight_coupling(6) = Theta(1,0,k)
-          y_tight_coupling(7) = Theta(1,1,k)
+       ! Initialize equation set for tight coupling
+       y_tight_coupling(1) = delta(1,k)
+       y_tight_coupling(2) = delta_b(1,k)
+       y_tight_coupling(3) = v(1,k)
+       y_tight_coupling(4) = v_b(1,k)
+       y_tight_coupling(5) = Phi(1,k)
+       y_tight_coupling(6) = Theta(1,0,k)
+       y_tight_coupling(7) = Theta(1,1,k)
        
-          ! Find the time to which tight coupling is assumed, and integrate equations to that time
-          x_tc = get_tight_coupling_time(k_current)
+       ! Find the time to which tight coupling is assumed, 
+       ! and integrate equations to that time
+       x_tc = get_tight_coupling_time(k_current)
        
-          ! Write initial values to file for k=1,10,30,50,80,100
-          do i = 1,6
-             if (k == prints(i)) then
-                write(27,'(5(E17.8))') x_t(1), delta(1,k), delta_b(1,k), v(1,k), v_b(1,k)
-                write(28,'(5(E17.8))') x_t(1), Phi(1,k), Psi(1,k), Theta(1,0,k), Theta(1,1,k)
-                write(26,'(3(E17.8))') x_t(1), dPhi(1,k), dPsi(1,k)
+       ! write(*,*) x_tc
+       
+       ! Write initial values to file for k=1,10,30,50,80,100
+       do i = 1,6
+          if (k == prints(i)) then
+             write(27,'(5(E17.8))') x_t(1), delta(1,k), delta_b(1,k), v(1,k), v_b(1,k)
+             write(28,'(5(E17.8))') x_t(1), Phi(1,k), Psi(1,k), Theta(1,0,k), Theta(1,1,k)
+             write(26,'(3(E17.8))') x_t(1), dPhi(1,k), dPsi(1,k)
+          end if
+       end do  
+
+
+       ! Task: Integrate from x_init until the end of tight coupling, using
+       !       the tight coupling equations       
+       j=2
+       do while (x_t(j) < x_tc)
+            x     = x_t(j)
+            a     = exp(x)
+            bleta = get_eta(x)
+            H     = get_H_p(x)
+            ckH   = ck/H
+            dtau  = get_dtau(x)
+             
+            ! Solve next evolution step
+            call odeint(y_tight_coupling,x_t(j-1),x,eps,h1,hmin,deriv_tc,bsstep,output)
+             
+            ! Save variables
+            delta(j,k)    = y_tight_coupling(1)
+            delta_b(j,k)  = y_tight_coupling(2)
+            v(j,k)        = y_tight_coupling(3)
+            v_b(j,k)      = y_tight_coupling(4)
+            Phi(j,k)      = y_tight_coupling(5)
+            Theta(j,0,k)  = y_tight_coupling(6)
+            Theta(j,1,k)  = y_tight_coupling(7)
+            Theta(j,2,k)  = -20.d0*ckH/(45.d0*dtau)*Theta(j,1,k)
+
+            ! And for higher l's
+            !do l=3,lmax_int
+            !   Theta(j,l,k) = -l/(2.d0*l+1)*ckH/dtau*Theta(j,l-1,k)
+            !end do
+
+            Psi(j,k)      = -Phi(j,k) - 12.d0*(H_0/(ck*a))**2.d0*Omega_r*Theta(j,2,k)
+
+
+            ! Task: Store derivatives that are required for C_l estimation
+            call deriv_tc(x_t(j),y_tight_coupling,dydx)
+            dv_b(j,k)     = dydx(4)
+            dPhi(j,k)     = dydx(5)
+            dTheta(j,0,k) = dydx(6)
+            dTheta(j,1,k) = dydx(7)
+            dTheta(j,2,k) = 2.d0/5.d0*ckH*Theta(j,1,k) -&
+                            3.d0*ckH/(5.d0)*Theta(j,3,k)+dtau*0.9d0*Theta(j,2,k)
+             
+            !do l=3,lmax_int-1
+            !   dTheta(j,l,k) = l*ckH/(2.d0*l+1.d0)*Theta(j,l-1,k) -&
+            !                   (l+1.d0)*ckH/(2.d0*l+1.d0)*Theta(j,l+1,k) + dtau*Theta(j,l,k)
+            !end do
+
+            !dTheta(j,lmax_int,k) = ckH*Theta(j,lmax_int-1,k) -&
+            !                       c*(l+1.d0)/(H*bleta)*Theta(j,lmax_int,k)&
+            !                       + dtau*Theta(k,lmax_int,k)          
+
+            dPsi(j,k)            = -dPhi(j,k) - 12.d0*H_0**2.d0/(ck*a)**2.d0*Omega_r*&
+                                   (-2.d0*Theta(j,2,k)+dTheta(j,2,k))
+
+!            write(*,*) j
+
+            ! Write values to file for k=1,10,30,50,80,100
+            do i = 1,6
+               if (k == prints(i)) then
+                  write(27,'(5(E17.8))') x_t(j), delta(j,k), delta_b(j,k), v(j,k), v_b(j,k)
+                  write(28,'(5(E17.8))') x_t(j), Phi(j,k), Psi(j,k), Theta(j,0,k), Theta(j,1,k)
+                  write(26,'(3(E17.8))') x_t(j), dPhi(j,k), dPsi(j,k)
+               end if
+            end do
+            j = j+1
+       end do  
+       j_tc = j
+
+
+        
+
+       ! Task: Set up variables for integration from the end of tight coupling 
+       ! until today
+       y(1:7) = y_tight_coupling(1:7)
+       y(8)   = -20.d0*ckH/(45.d0*dtau)*Theta(i,1,k)
+
+       do l = 3, lmax_int
+          y(6+l) = -l*ckH/((2.d0*l+1.d0)*dtau)*y(6+l-1)
+       end do
+
+       do i = j_tc,n_t
+          
+             x = x_t(i)
+             a = exp(x)
+             bleta = get_eta(x)
+             H   = get_H_p(x)
+             ckH = ck/H
+             dtau = get_dtau(x)
+
+   
+          ! Task: Integrate equations from tight coupling to today
+          call odeint(y,x_t(i-1),x,eps,h1,hmin,deriv,bsstep,output)
+
+
+          ! Task: Store variables at time step i in global variables
+          delta(i,k)   = y(1) 
+          delta_b(i,k) = y(2)
+          v(i,k)       = y(3)
+          v_b(i,k)     = y(4)
+          Phi(i,k)     = y(5)
+
+          do l = 0, lmax_int
+             Theta(i,l,k) = y(6+l)
+          end do
+
+          Psi(i,k)     = - Phi(i,k) - 12.d0*(H_0/(ck*a))**2.d0*Omega_r*Theta(i,2,k)
+
+          ! Task: Store derivatives that are required for C_l estimation
+          call deriv(x_t(i),y,dydx)
+          
+          dPhi(i,k)     = dydx(5)
+          dv_b(i,k)     = dydx(4)
+          
+          do l=0,lmax_int
+             dTheta(i,:,k) = dydx(6+l) 
+          end do
+
+          dPsi(i,k)     = -dPhi(i,k) - (12.d0*H_0**2.d0)/(ck*a)**2.d0*&
+                           Omega_r*(-2.d0*Theta(i,2,k)+dTheta(i,2,k))
+
+          do j = 1,6
+             if (k == prints(j)) then
+                write(27,'(5(E17.8))') x_t(i), delta(i,k), delta_b(i,k), v(i,k), v_b(i,k)
+                write(28,'(5(E17.8))') x_t(i), Phi(i,k), Psi(i,k), Theta(i,0,k), Theta(i,1,k)
+                write(26,'(3(E17.8))') x_t(i), dPhi(i,k), dPsi(i,k)
              end if
           end do
 
-
-          ! Task: Integrate from x_init until the end of tight coupling, using
-          !       the tight coupling equations       
-          j=2
-          do while (x_t(j) < x_tc)
-             x     = x_t(j)
-             a     = exp(x)
-             bleta = get_eta(x)
-             H     = get_H_p(x)
-             ckH   = ck/H
-             dtau  = get_dtau(x)
-             
-             ! Solve next evolution step
-             call odeint(y_tight_coupling,x_t(j-1),x,eps,h1,hmin,deriv_tc,bsstep,output)
-             
-             ! Save variables
-             delta(j,k)    = y_tight_coupling(1)
-             delta_b(j,k)  = y_tight_coupling(2)
-             v(j,k)        = y_tight_coupling(3)
-             v_b(j,k)      = y_tight_coupling(4)
-             Phi(j,k)      = y_tight_coupling(5)
-             Theta(j,0,k)  = y_tight_coupling(6)
-             Theta(j,1,k)  = y_tight_coupling(7)
-             Theta(j,2,k)  = -20.d0*ckH/(45.d0*dtau)*Theta(j,1,k)
-             Psi(j,k)      = -Phi(j,k) - 12.d0*(H_0/(ck*a))**2.d0*Omega_r*Theta(j,2,k)
-
-             ! Task: Store derivatives that are required for C_l estimation
-             call deriv_tc(x_t(j),y_tight_coupling,dydx)
-             dv_b(j,k)     = dydx(4)
-             dPhi(j,k)     = dydx(5)
-             dTheta(j,0,k) = dydx(6)
-             dTheta(j,1,k) = dydx(7)
-             dTheta(j,2,k) = 2.d0/5.d0*ckH*Theta(j,1,k) -&
-                             3.d0*ckH/(5.d0)*Theta(j,3,k)+dtau*0.9d0*Theta(j,2,k)
-             dPsi(j,k)     = -dPhi(j,k) - 12.d0*H_0**2.d0/(ck*a)**2.d0*Omega_r*&
-                             (-2.d0*Theta(j,2,k)+dTheta(j,2,k))
-
-             ! Write values to file for k=1,10,30,50,80,100
-             do i = 1,6
-                if (k == prints(i)) then
-                   write(27,'(5(E17.8))') x_t(j), delta(j,k), delta_b(j,k), v(j,k), v_b(j,k)
-                   write(28,'(5(E17.8))') x_t(j), Phi(j,k), Psi(j,k), Theta(j,0,k), Theta(j,1,k)
-                   write(26,'(3(E17.8))') x_t(j), dPhi(j,k), dPsi(j,k)
-                end if
-             end do
-             j = j+1
-          end do
-          j_tc = j
-
-          ! Task: Set up variables for integration from the end of tight coupling until today
-          !----------------------------------------------------------------------------------
-          y(1:7) = y_tight_coupling(1:7)
-          y(8)   = -20.d0*ckH/(45.d0*dtau)*Theta(i,1,k)
-          do l = 3, lmax_int
-             y(6+l) = -l*ckH/((2.d0*l+1.d0)*dtau)*y(6+l-1)
-          end do
-
-          do i = j_tc,n_t
-             x     = x_t(i)
-             a     = exp(x)
-             bleta = get_eta(x)
-             H     = get_H_p(x)
-             ckH   = ck/H
-             dtau  = get_dtau(x)
-   
-             ! Task: Integrate equations from tight coupling to today
-             call odeint(y,x_t(i-1),x,eps,h1,hmin,deriv,bsstep,output)
-
-             ! Task: Store variables at time step i in global variables
-             !---------------------------------------------------------
-             delta(i,k)   = y(1) 
-             delta_b(i,k) = y(2)
-             v(i,k)       = y(3)
-             v_b(i,k)     = y(4)
-             Phi(i,k)     = y(5)
-             do l = 0, lmax_int
-                Theta(i,l,k) = y(6+l)
-             end do
-             Psi(i,k)     = -Phi(i,k)-12.d0*(H_0/(ck*a))**2.d0*Omega_r*Theta(i,2,k)
-
-             ! Task: Store derivatives that are required for C_l estimation
-             !-------------------------------------------------------------
-             call deriv(x_t(i),y,dydx)
-             dPhi(i,k)     = dydx(5)
-             dv_b(i,k)     = dydx(4)
-             do l=0,lmax_int
-                dTheta(i,:,k) = dydx(6+l) 
-             end do
-             dPsi(i,k)     = -dPhi(i,k) - (12.d0*H_0**2.d0)/(ck*a)**2.d0*&
-                             Omega_r*(-2.d0*Theta(i,2,k)+dTheta(i,2,k))
-
-
-             ! Write to file
-             do j = 1,6
-                if (k == prints(j)) then
-                   write(27,'(5(E17.8))') x_t(i), delta(i,k), delta_b(i,k), v(i,k), v_b(i,k)
-                   write(28,'(5(E17.8))') x_t(i), Phi(i,k),   Psi(i,k), Theta(i,0,k), Theta(i,1,k)
-                   write(26,'(3(E17.8))') x_t(i), dPhi(i,k),  dPsi(i,k)
-                end if
-             end do
-
-          end do
        end do
+    end do
 
-       deallocate(y_tight_coupling)
-       deallocate(y)
-       deallocate(dydx)
+    close(26)
+    close(27)
+    close(28)
 
-       open(29,file='evo_dat.unf',form='unformatted')
-       write(29) Theta
-       write(29) delta
-       write(29) delta_b
-       write(29) Phi
-       write(29) Psi
-       write(29) v
-       write(29) v_b
-       write(29) dPhi
-       write(29) dPsi
-       write(29) dv_b
-       write(29) dTheta
+    deallocate(y_tight_coupling)
+    deallocate(y)
+    deallocate(dydx)
 
-       close(26)
-       close(27)
-       close(28)
-       close(29)
-       write(*,*) 'Perturbation Equations Integrated.'
-
-    endif
-
-    write(*,*) '-----------------------------------'
   end subroutine integrate_perturbation_eqns
 
   ! -------------------- derivative subroutines ------------------------

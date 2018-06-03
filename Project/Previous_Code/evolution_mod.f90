@@ -104,10 +104,10 @@ contains
                   + 0.3d0*(ddt*Pi_c+dt*dPi) &
                   - 3.d0*ck/(5.d0*H_p)*(-dH_p/H_p*Theta(i2,3,k) + dTheta(i2,3,k))
 
-          !if (i == 100 .and. k==10) then
-          !   write(*,*) 'need to compare!'
-          !   write(*,*) g*(Theta(i2,0,k)+Psi(i2,k)+0.25d0*Pi_c)
-          !endif
+          if (i == 100 .and. k==10) then
+             write(*,*) 'need to compare!'
+             write(*,*) g*(Theta(i2,0,k)+Psi(i2,k)+0.25d0*Pi_c)
+          endif
 
           S_lores(i,k) = g*(Theta(i2,0,k)+Psi(i2,k)+0.25d0*Pi_c)+exp(-tau)*(dPsi(i2,k)-dPhi(i2,k)) &
                          - 1.d0/ck*(H_p*(g*dv_b(i2,k)+v_b(i2,k)*dg)+g*v_b(i2,k)*dH_p) &
@@ -120,8 +120,10 @@ contains
 
     write(*,*) '---------------------------'   
     !write(*,*) S_lores(100,1), S_lores(100,5), S_lores(100,10)
-    !write(*,*) get_g(x_use(100))*(Theta(1099,0,10)+Psi(1099,10)+0.25d0*Theta(1099,2,10))
-    !write(*,*) get_g(x_use(100)), x_use(100)
+    write(*,*) get_g(x_use(100))*(Theta(1099,0,10)+Psi(1099,10)+0.25d0*Theta(1099,2,10))
+    write(*,*) get_g(x_use(100)), x_use(100)
+
+    STOP
 
     !   2) Then spline this function with a 2D spline
     call splie2_full_precomp(x_use, ks, S_lores,S_coeff)
@@ -406,6 +408,11 @@ contains
        write(*,*) 'Perturbation Equations Integrated.'
 
     endif
+
+    write(*,*) dTheta(1099,1,1), dTheta(1099,1,5), dTheta(1099,1,10)
+    write(*,*) get_g(x_t(1099)), x_t(1099)
+    
+
 
     write(*,*) '-----------------------------------'
   end subroutine integrate_perturbation_eqns

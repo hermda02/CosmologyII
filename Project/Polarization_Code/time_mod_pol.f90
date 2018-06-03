@@ -9,7 +9,7 @@ module time_mod
   real(dp)     :: z_start_rec, z_end_rec, z_0, x_start_rec, x_end_rec, x_0
 
 
-  integer(i4b)                           :: n_t, n1, n2,n3     ! Number of x-values
+  integer(i4b)                           :: n_t                ! Number of x-values
   real(dp),    allocatable, dimension(:) :: x_t                ! Grid of relevant x-values
   real(dp),    allocatable, dimension(:) :: a_t                ! Grid of relevant a-values
   real(dp),    allocatable, dimension(:) :: eta_t              ! Grid of relevenat eta-values
@@ -50,7 +50,7 @@ contains
   subroutine initialize_time_mod
     implicit none
 
-    integer(i4b) :: i, n
+    integer(i4b) :: i, n, n1, n2,n3
     real(dp)     :: dx,x_eta1, x_eta2, a_init,a_end,eta_init
     real(dp)     :: eps,hmin,yp1,ypn,h1
     real(dp),    allocatable, dimension(:) :: dydx
@@ -155,6 +155,17 @@ contains
     a_eta = exp(x_eta)
     z_eta = 1.d0/a_eta - 1.d0
 
+    ! print *, "z"
+    ! write(*,*) size(z_eta)
+
+    ! print *, "x"
+    ! write(*,*) size(x_eta)
+
+    ! print *, "a"
+    ! write(*,*) size(a_eta)
+
+
+
     !--------------------------------------------------------------------------------------
     ! Density calculations 
     
@@ -164,6 +175,8 @@ contains
     rho_r0     = Omega_r      * rho_crit0
     rho_nu0    = Omega_nu     * rho_crit0
     rho_lambda0= Omega_lambda * rho_crit0
+
+    
 
     do i=1,n_eta
        Hx(i) = get_H(x_eta(i))*kmmpc

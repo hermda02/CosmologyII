@@ -92,7 +92,7 @@ contains
 
        if (use_saha) then
           ! Use the Saha equation
-          X_e(i) = 2.d0/(sqrt(1+4.d0/junk)+1.d0)!(-junk+sqrt(junk*junk+4.d0*junk))/2.d0
+          X_e(i) = (-junk+sqrt(junk*junk+4.d0*junk))/2.d0
           if (X_e(i) < saha_limit) use_saha = .false.
        else
           ! Use the Peebles equation
