@@ -44,7 +44,7 @@
 
 \section{Introduction}\label{sec:intro}
 
-In this milestone we utilize the physical quantities computed in the previous milestones to compute the CMB power spectrum. Using line-of-sight integration techniques as described in (SOURCE), we can represent the size of perturbation growths in a simple plot with only one dependent variable. This variable, $l$, represents the angular scale size of the perturbation in question, similar to the Fourier space variable $k$ used in Milestone 3.\\
+In this milestone we utilize the physical quantities computed in the previous milestones to compute the CMB power spectrum. Using line-of-sight integration techniques as described in Callin (2006), we can represent the size of perturbation growths in a simple plot with only one dependent variable. This variable, $l$, represents the angular scale size of the perturbation in question, similar to the Fourier space variable $k$ used in Milestone 3.\\
 
 We compare the results of our computation to that of the latest PLANCK 2015 data release power spectrum, and adjust cosmological parameters to attempt to get the best fit. Altering these variables will help us get an intuition into the effects of these different parameters on the structure growth of the universe.
 
@@ -52,7 +52,7 @@ We compare the results of our computation to that of the latest PLANCK 2015 data
 
 In the same way as the previous 
 
-As was mentioned above, we utilize the line-of-sight integration techniques described in (SOURCE). This method cuts down significantly on computation time because instead of evaluating the full temperature field in the multipoles computed in Milestone 3, we can instead evaluate the integral of the original equation for $\dot{\Theta}$. We will gloss over the exact details of determining this integral, but the expression for the transfer function $\Theta_l$ becomes
+As was mentioned above, we utilize the line-of-sight integration techniques described in Callin (2006). This method cuts down significantly on computation time because instead of evaluating the full temperature field in the multipoles computed in Milestone 3, we can instead evaluate the integral of the original equation for $\dot{\Theta}$. We will gloss over the exact details of determining this integral, but the expression for the transfer function $\Theta_l$ becomes
 
 \begin{equation}\label{eq:transf}
 \Theta_l(k,x=0) = \int_{-\infty}^0 \tilde{S}(k,x)j_l[k(\eta_0 - \eta)]dx
